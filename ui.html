@@ -16,13 +16,11 @@
     flex-direction: column;
     gap: 12px;
   }
-
   h1 {
     font-size: 14px;
     font-weight: 600;
     margin: 0 0 8px 0;
   }
-
   fieldset {
     border: 1px solid #ddd;
     border-radius: 6px;
@@ -32,12 +30,10 @@
     flex-direction: column;
     gap: 6px;
   }
-
   legend {
     font-weight: 500;
     padding: 0 4px;
   }
-
   .brand-list {
     max-height: 160px;
     overflow-y: auto;
@@ -45,32 +41,66 @@
     border: 1px solid #eee;
     border-radius: 4px;
   }
-
   .brand-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
   }
-
-  .brand-item label {
+  .brand-label {
     display: flex;
     flex-direction: column;
-    cursor: pointer;
     gap: 2px;
+    margin-left: 8px;
   }
-
   .brand-id {
     font-size: 11px;
     color: #666;
   }
-
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 20px;
+  }
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.2s;
+    border-radius: 34px;
+  }
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+  }
+  .switch input:checked + .slider {
+    background-color: #007aff;
+  }
+  .switch input:checked + .slider:before {
+    transform: translateX(14px);
+  }
   .controls {
     display: flex;
     justify-content: space-between;
     margin-top: 4px;
   }
-
   button {
     border: none;
     border-radius: 4px;
@@ -78,44 +108,31 @@
     font-size: 13px;
     cursor: pointer;
   }
-
   button:disabled {
     opacity: 0.6;
     cursor: default;
   }
-
   .primary {
     background: #007aff;
     color: #fff;
   }
-
   .secondary {
     background: #f3f3f3;
   }
-
   .status {
     font-size: 12px;
     margin-top: 6px;
   }
-
   .error {
     color: #d00;
   }
-
   .muted {
     color: #666;
-  }
-
-  input[type="checkbox"]:focus + label {
-    outline: 1px solid #007aff;
-    outline-offset: 2px;
   }
 </style>
 </head>
 <body>
-
   <h1>Generate brand variants</h1>
-
   <fieldset>
     <legend>Brands found</legend>
     <div id="brandList" class="brand-list muted">Detecting brands…</div>
@@ -124,14 +141,11 @@
       <button id="deselectAll" class="secondary" disabled>Deselect all</button>
     </div>
   </fieldset>
-
   <div class="controls">
     <button id="generateBtn" class="primary" disabled>Generate</button>
     <button id="closeBtn" class="secondary">Close</button>
   </div>
-
   <div id="status" class="status muted">Detecting brands…</div>
-
 <script>
   const brandListEl = document.getElementById('brandList');
   const selectAllBtn = document.getElementById('selectAll');
@@ -158,7 +172,6 @@
       deselectAllBtn.disabled = true;
       return;
     }
-
     brandListEl.classList.remove('muted');
 
     brands.forEach((b) => {
@@ -166,11 +179,17 @@
       const wrapper = document.createElement('div');
       wrapper.className = 'brand-item';
 
+      const switchLabel = document.createElement('label');
+      switchLabel.className = 'switch';
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.id = id;
       checkbox.value = b.id;
       checkbox.checked = selected.has(b.id);
+      const slider = document.createElement('span');
+      slider.className = 'slider';
+      switchLabel.appendChild(checkbox);
+      switchLabel.appendChild(slider);
 
       checkbox.addEventListener('change', () => {
         if (checkbox.checked) selected.add(b.id);
@@ -178,12 +197,13 @@
         updateGenerateState();
       });
 
-      const label = document.createElement('label');
-      label.htmlFor = id;
-      label.innerHTML = `<span>${b.name}</span><span class="brand-id">${b.id}</span>`;
+      const infoLabel = document.createElement('label');
+      infoLabel.className = 'brand-label';
+      infoLabel.htmlFor = id;
+      infoLabel.innerHTML = `<span>${b.name}</span><span class="brand-id">${b.id}</span>`;
 
-      wrapper.appendChild(checkbox);
-      wrapper.appendChild(label);
+      wrapper.appendChild(switchLabel);
+      wrapper.appendChild(infoLabel);
       brandListEl.appendChild(wrapper);
     });
 
@@ -251,6 +271,5 @@
   // Initial request to get brand collections
   postToPlugin('REQUEST_BRANDS');
 </script>
-
 </body>
 </html>
