@@ -1,0 +1,15 @@
+{
+  "name": "Figma Plugin Test",
+  "id": "figma-plugin-test",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "relaunchButtons": [
+    {
+      "command": "create-variations",
+      "name": "Create Variations",
+      "multipleSelection": true
+    }
+  ]
+}
