@@ -10,14 +10,18 @@ body {
   font-size: 13px;
   color: #222;
   margin: 0;
-  padding: 16px;
+  padding: 12px;
   background: #fff;
+  overflow: hidden; /* Prevent vertical overscrolling */
+  box-sizing: border-box;
 }
 .container {
   border: 1px solid #ddd;
   border-radius: 6px;
-  padding: 16px;
-  width: 180px;
+  padding: 12px;
+  width: 100%;
+  max-width: 200px; /* Ensure proper width fitting */
+  box-sizing: border-box;
 }
 header {
   font-size: 14px;
@@ -28,7 +32,7 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .switch {
   position: relative;
