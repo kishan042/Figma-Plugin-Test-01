@@ -62,30 +62,34 @@ figma.ui.onmessage = async (msg) => {
         const clone = baseNode.clone();
         
         if (msg.theme && themeCollection) {
-          // Calculate section dimensions based on frame size
-          const sectionWidth = baseNode.width + 200;
-          const sectionHeight = baseNode.height + 200;
+          // Calculate wrapper dimensions based on frame size + 25px padding
+          const wrapperWidth = baseNode.width + 25;
+          const wrapperHeight = baseNode.height + 25;
           
-          // Create section for this mode
-          const section = figma.createSection();
+          // Create frame for this mode (frames support resize, sections don't)
+          const wrapper = figma.createFrame();
           const mode = themeCollection.modes[i];
-          section.name = mode.name; // Name section after the mode (e.g., "Mode 1", "Mode 2")
+          wrapper.name = mode.name;
           
-          // Position section on canvas
-          section.x = startX + baseNode.width + 100 + (i * (sectionWidth + 100));
-          section.y = startY + j * (baseNode.height + 240);
+          // Resize wrapper to desired dimensions
+          wrapper.resize(wrapperWidth, wrapperHeight);
+          wrapper.fills = []; // Make transparent
           
-          // Add clone to section
-          section.appendChild(clone);
+          // Add clone to wrapper
+          wrapper.appendChild(clone);
           
-          // Position clone relative to section (with padding) AFTER appendChild
-          clone.x = 100;
-          clone.y = 100;
+          // Position clone relative to wrapper (centered with padding)
+          clone.x = 12.5; // 25px padding / 2
+          clone.y = 12.5; // 25px padding / 2
+          
+          // Position wrapper on canvas
+          wrapper.x = startX + baseNode.width + 100 + (i * (wrapperWidth + 100));
+          wrapper.y = startY + j * (baseNode.height + 240);
           
           // Apply theme mode using resolved variable values
           applyThemeModeValues(clone, themeCollection, i);
           
-          clones.push(section);
+          clones.push(wrapper);
         } else {
           // No theme - just clone without section
           clone.x = startX + (i + 1) * spacingX;
