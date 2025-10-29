@@ -99,6 +99,8 @@ button.primary:active {
 </div>
 <script>
 let detectedCollections = [];
+// Store toggle states in memory
+let toggleStates = {};
 
 // Listen for messages from plugin
 window.onmessage = (event) => {
@@ -132,14 +134,26 @@ function showCollections(collections) {
   collections.forEach((collection, index) => {
     const setting = document.createElement('div');
     setting.className = 'setting';
+    
+    // Check if we have saved state, otherwise default to checked
+    const isChecked = toggleStates[collection.id] !== undefined 
+      ? toggleStates[collection.id] 
+      : true;
+    
     setting.innerHTML = `
       <label for="toggle${index}">${collection.name}</label>
       <label class="switch">
-        <input type="checkbox" id="toggle${index}" data-collection-id="${collection.id}" />
+        <input type="checkbox" id="toggle${index}" data-collection-id="${collection.id}" ${isChecked ? 'checked' : ''} />
         <span class="slider"></span>
       </label>
     `;
     container.appendChild(setting);
+    
+    // Add change listener to save state
+    const toggle = document.getElementById(`toggle${index}`);
+    toggle.addEventListener('change', () => {
+      toggleStates[collection.id] = toggle.checked;
+    });
   });
   
   document.getElementById('createButton').disabled = false;

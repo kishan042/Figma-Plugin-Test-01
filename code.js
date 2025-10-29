@@ -16,7 +16,14 @@ function detectAndSendCollections() {
     return;
   }
   
+  // Only process first selected node if multiple are selected
   const node = selection[0];
+  
+  // Notify user if multiple selections detected
+  if (selection.length > 1) {
+    figma.notify(`Processing first selection only (${selection.length} items selected)`);
+  }
+  
   const detectedCollections = getCollectionsUsedInNode(node);
   
   figma.ui.postMessage({ 
@@ -93,12 +100,10 @@ figma.ui.onmessage = async (msg) => {
     
     const clones = [];
     
-    // Process each enabled collection
-    msg.collections.forEach((collectionData, colIndex) => {
-      const collection = figma.variables.getVariableCollectionById(collectionData.id);
-      if (!collection) return;
-      
-      collection.modes.forEach((mode, modeIndex) => {
+    // Generate all combinations of modes from enabled collections
+    function generateCombinations(collections, currentCombination = [], collectionIndex = 0) {
+      if (collectionIndex === collections.length) {
+        // We have a complete combination, create the clone
         const clone = baseNode.clone();
         
         // Create wrapper frame
@@ -106,7 +111,9 @@ figma.ui.onmessage = async (msg) => {
         const wrapperHeight = baseNode.height + 25;
         
         const wrapper = figma.createFrame();
-        wrapper.name = `${collection.name} - ${mode.name}`;
+        
+        // Build name from all modes: "Brand A + Mode 1"
+        wrapper.name = currentCombination.map(c => c.modeName).join(' + ');
         wrapper.resize(wrapperWidth, wrapperHeight);
         wrapper.fills = [];
         
@@ -114,16 +121,48 @@ figma.ui.onmessage = async (msg) => {
         clone.x = 12.5;
         clone.y = 12.5;
         
-        // Position wrapper
-        wrapper.x = baseNode.x + baseNode.width + 100 + (modeIndex * (wrapperWidth + 100));
-        wrapper.y = baseNode.y + (colIndex * (baseNode.height + 240));
+        // Position wrapper (grid layout based on index)
+        const gridColumns = collections[0] ? collections[0].modes.length : 1;
+        const cloneIndex = clones.length;
+        const col = cloneIndex % gridColumns;
+        const row = Math.floor(cloneIndex / gridColumns);
         
-        // Apply mode
-        applyThemeModeValues(clone, collection, modeIndex);
+        wrapper.x = baseNode.x + baseNode.width + 100 + (col * (wrapperWidth + 100));
+        wrapper.y = baseNode.y + (row * (baseNode.height + 240));
+        
+        // Apply all modes from the combination
+        currentCombination.forEach(({ collection, modeIndex }) => {
+          applyThemeModeValues(clone, collection, modeIndex);
+        });
         
         clones.push(wrapper);
+        return;
+      }
+      
+      // Process current collection's modes
+      const collectionData = collections[collectionIndex];
+      const collection = figma.variables.getVariableCollectionById(collectionData.id);
+      if (!collection) {
+        generateCombinations(collections, currentCombination, collectionIndex + 1);
+        return;
+      }
+      
+      // For each mode in this collection
+      collection.modes.forEach((mode, modeIndex) => {
+        const newCombination = [
+          ...currentCombination,
+          {
+            collection: collection,
+            modeIndex: modeIndex,
+            modeName: mode.name
+          }
+        ];
+        generateCombinations(collections, newCombination, collectionIndex + 1);
       });
-    });
+    }
+    
+    // Start generating combinations
+    generateCombinations(msg.collections);
     
     figma.currentPage.selection = clones;
     figma.notify(`Created ${clones.length} variations.`);
