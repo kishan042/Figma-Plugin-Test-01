@@ -102,8 +102,7 @@ figma.ui.onmessage = async (msg) => {
     
     // Calculate grid columns ONCE based on last collection
     const lastCollectionData = msg.collections[msg.collections.length - 1];
-    const lastCollection = figma.variables.getVariableCollectionById(lastCollectionData.id);
-    const gridColumns = lastCollection ? lastCollection.modes.length : 1;
+    const gridColumns = lastCollectionData.modes.length;
     
     // Generate all combinations of modes from enabled collections
     function generateCombinations(collections, currentCombination = [], collectionIndex = 0) {
@@ -151,25 +150,19 @@ figma.ui.onmessage = async (msg) => {
         return;
       }
       
-      // For each mode in this collection
-      collection.modes.forEach((mode, modeIndex) => {
-        // Debug: log mode structure
-        console.log('Mode structure:', mode);
-        
+      // For each mode in this collection - use the mode data from UI
+      collectionData.modes.forEach((modeData, modeIndex) => {
         const newCombination = [
           ...currentCombination,
           {
             collection: collection,
             modeIndex: modeIndex,
-            modeName: mode.name || mode.modeId || `Mode ${modeIndex + 1}`  // Fallback
+            modeName: modeData.name  // Use the name we already have from detection
           }
         ];
         generateCombinations(collections, newCombination, collectionIndex + 1);
       });
     }
-    
-    // Debug: log collections structure
-    console.log('Collections data:', msg.collections);
     
     // Start generating combinations
     generateCombinations(msg.collections);
