@@ -100,6 +100,11 @@ figma.ui.onmessage = async (msg) => {
     
     const clones = [];
     
+    // Calculate grid columns ONCE based on last collection
+    const lastCollectionData = msg.collections[msg.collections.length - 1];
+    const lastCollection = figma.variables.getVariableCollectionById(lastCollectionData.id);
+    const gridColumns = lastCollection ? lastCollection.modes.length : 1;
+    
     // Generate all combinations of modes from enabled collections
     function generateCombinations(collections, currentCombination = [], collectionIndex = 0) {
       if (collectionIndex === collections.length) {
@@ -122,11 +127,6 @@ figma.ui.onmessage = async (msg) => {
         clone.y = 12.5;
         
         // Position wrapper (grid layout based on index)
-        // Use the LAST collection's mode count for grid columns
-        // This ensures each row contains all modes from the last collection
-        const lastCollectionData = msg.collections[msg.collections.length - 1];
-        const lastCollection = figma.variables.getVariableCollectionById(lastCollectionData.id);
-        const gridColumns = lastCollection ? lastCollection.modes.length : 1;
         const cloneIndex = clones.length;
         const col = cloneIndex % gridColumns;
         const row = Math.floor(cloneIndex / gridColumns);
@@ -153,17 +153,23 @@ figma.ui.onmessage = async (msg) => {
       
       // For each mode in this collection
       collection.modes.forEach((mode, modeIndex) => {
+        // Debug: log mode structure
+        console.log('Mode structure:', mode);
+        
         const newCombination = [
           ...currentCombination,
           {
             collection: collection,
             modeIndex: modeIndex,
-            modeName: mode.name
+            modeName: mode.name || mode.modeId || `Mode ${modeIndex + 1}`  // Fallback
           }
         ];
         generateCombinations(collections, newCombination, collectionIndex + 1);
       });
     }
+    
+    // Debug: log collections structure
+    console.log('Collections data:', msg.collections);
     
     // Start generating combinations
     generateCombinations(msg.collections);
