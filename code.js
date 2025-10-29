@@ -122,7 +122,11 @@ figma.ui.onmessage = async (msg) => {
         clone.y = 12.5;
         
         // Position wrapper (grid layout based on index)
-        const gridColumns = collections[0] ? collections[0].modes.length : 1;
+        // Use the LAST collection's mode count for grid columns
+        // This ensures each row contains all modes from the last collection
+        const lastCollectionData = msg.collections[msg.collections.length - 1];
+        const lastCollection = figma.variables.getVariableCollectionById(lastCollectionData.id);
+        const gridColumns = lastCollection ? lastCollection.modes.length : 1;
         const cloneIndex = clones.length;
         const col = cloneIndex % gridColumns;
         const row = Math.floor(cloneIndex / gridColumns);
