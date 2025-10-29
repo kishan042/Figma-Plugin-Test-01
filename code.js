@@ -1,10 +1,78 @@
 figma.showUI(__html__, { width: 240, height: 200 });
 
+// Listen for selection changes to update UI with detected collections
+figma.on('selectionchange', () => {
+  detectAndSendCollections();
+});
+
+// Detect collections on plugin load
+detectAndSendCollections();
+
+function detectAndSendCollections() {
+  const selection = figma.currentPage.selection;
+  
+  if (selection.length === 0) {
+    figma.ui.postMessage({ type: 'NO_SELECTION', collections: [] });
+    return;
+  }
+  
+  const node = selection[0];
+  const detectedCollections = getCollectionsUsedInNode(node);
+  
+  figma.ui.postMessage({ 
+    type: 'COLLECTIONS_DETECTED', 
+    collections: detectedCollections 
+  });
+}
+
+function getCollectionsUsedInNode(node) {
+  const collectionsMap = new Map();
+  
+  // Recursively check node and children for bound variables
+  function checkNode(n) {
+    if ('boundVariables' in n && n.boundVariables) {
+      // Check all bound variable properties (fills, strokes, etc.)
+      for (const [property, binding] of Object.entries(n.boundVariables)) {
+        if (binding && typeof binding === 'object') {
+          const bindings = Array.isArray(binding) ? binding : [binding];
+          bindings.forEach(b => {
+            if (b && b.id) {
+              try {
+                const variable = figma.variables.getVariableById(b.id);
+                if (variable) {
+                  const collection = figma.variables.getVariableCollectionById(variable.variableCollectionId);
+                  if (collection && !collectionsMap.has(collection.id)) {
+                    collectionsMap.set(collection.id, {
+                      id: collection.id,
+                      name: collection.name,
+                      modes: collection.modes.map(m => ({ id: m.modeId, name: m.name }))
+                    });
+                  }
+                }
+              } catch (e) {
+                console.error('Error getting variable:', e);
+              }
+            }
+          });
+        }
+      }
+    }
+    
+    // Recursively check children
+    if ('children' in n) {
+      n.children.forEach(child => checkNode(child));
+    }
+  }
+  
+  checkNode(node);
+  return Array.from(collectionsMap.values());
+}
+
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'CREATE') {
-    // Bug 2 fix: Do nothing if no toggles are ON
-    if (!msg.theme && !msg.dynamic) {
-      figma.notify('Please enable at least one option (Theme or Dynamic Type).');
+    // Check if any collections are enabled
+    if (!msg.collections || msg.collections.length === 0) {
+      figma.notify('Please enable at least one collection.');
       return;
     }
 
@@ -16,132 +84,52 @@ figma.ui.onmessage = async (msg) => {
 
     const baseNode = selection[0];
     
-    // Validate node type supports variable modes
+    // Validate node type
     const supportedTypes = ['FRAME', 'COMPONENT', 'COMPONENT_SET', 'SECTION', 'INSTANCE'];
     if (!supportedTypes.includes(baseNode.type)) {
       figma.notify('Please select a frame, section, component, or instance.');
       return;
     }
+    
     const clones = [];
     
-    // Dynamic theme mode detection
-    let numThemeModes = 1;
-    let themeCollection = null;
-    
-    if (msg.theme) {
-      const result = findThemeCollection();
-      if (result) {
-        themeCollection = result.collection;
-        numThemeModes = result.modeCount;
-      } else {
-        figma.notify('Theme collection not found. Please create a collection named "Theme".');
-        return;
-      }
-    }
-    
-    // Dynamic Type collection detection  
-    if (msg.dynamic) {
-      const dynamicResult = findDynamicTypeCollection();
-      if (!dynamicResult) {
-        figma.notify('Dynamic Type collection not found. Please create a collection named "Dynamic Type".');
-        return;
-      }
-      // Dynamic Type collection exists - allow it to continue
-    }
-    
-    const numSizes = msg.dynamic ? 10 : 1;
-    
-    const startX = baseNode.x;
-    const startY = baseNode.y;
-    const spacingX = baseNode.width + 40;
-    const spacingY = baseNode.height + 40;
-    
-    // Create clones for each theme mode
-    for (let i = 0; i < numThemeModes; i++) {
-      for (let j = 0; j < numSizes; j++) {
+    // Process each enabled collection
+    msg.collections.forEach((collectionData, colIndex) => {
+      const collection = figma.variables.getVariableCollectionById(collectionData.id);
+      if (!collection) return;
+      
+      collection.modes.forEach((mode, modeIndex) => {
         const clone = baseNode.clone();
         
-        if (msg.theme && themeCollection) {
-          // Calculate wrapper dimensions based on frame size + 25px padding
-          const wrapperWidth = baseNode.width + 25;
-          const wrapperHeight = baseNode.height + 25;
-          
-          // Create frame for this mode (frames support resize, sections don't)
-          const wrapper = figma.createFrame();
-          const mode = themeCollection.modes[i];
-          wrapper.name = mode.name;
-          
-          // Resize wrapper to desired dimensions
-          wrapper.resize(wrapperWidth, wrapperHeight);
-          wrapper.fills = []; // Make transparent
-          
-          // Add clone to wrapper
-          wrapper.appendChild(clone);
-          
-          // Position clone relative to wrapper (centered with padding)
-          clone.x = 12.5; // 25px padding / 2
-          clone.y = 12.5; // 25px padding / 2
-          
-          // Position wrapper on canvas
-          wrapper.x = startX + baseNode.width + 100 + (i * (wrapperWidth + 100));
-          wrapper.y = startY + j * (baseNode.height + 240);
-          
-          // Apply theme mode using resolved variable values
-          applyThemeModeValues(clone, themeCollection, i);
-          
-          clones.push(wrapper);
-        } else {
-          // No theme - just clone without section
-          clone.x = startX + (i + 1) * spacingX;
-          clone.y = startY + j * spacingY;
-          clones.push(clone);
-        }
-      }
-    }
+        // Create wrapper frame
+        const wrapperWidth = baseNode.width + 25;
+        const wrapperHeight = baseNode.height + 25;
+        
+        const wrapper = figma.createFrame();
+        wrapper.name = `${collection.name} - ${mode.name}`;
+        wrapper.resize(wrapperWidth, wrapperHeight);
+        wrapper.fills = [];
+        
+        wrapper.appendChild(clone);
+        clone.x = 12.5;
+        clone.y = 12.5;
+        
+        // Position wrapper
+        wrapper.x = baseNode.x + baseNode.width + 100 + (modeIndex * (wrapperWidth + 100));
+        wrapper.y = baseNode.y + (colIndex * (baseNode.height + 240));
+        
+        // Apply mode
+        applyThemeModeValues(clone, collection, modeIndex);
+        
+        clones.push(wrapper);
+      });
+    });
     
     figma.currentPage.selection = clones;
-    figma.notify(`Created ${numThemeModes * numSizes} variations.`);
+    figma.notify(`Created ${clones.length} variations.`);
   }
 };
 
-// Helper function to find Theme collection dynamically
-function findThemeCollection() {
-  try {
-    const collections = figma.variables.getLocalVariableCollections();
-    const themeCollection = collections.find(collection => 
-      collection.name.toLowerCase() === 'theme'
-    );
-    
-    if (themeCollection) {
-      return {
-        collection: themeCollection,
-        modeCount: themeCollection.modes.length
-      };
-    }
-    return null;
-  } catch (error) {
-    console.error('Error finding theme collection:', error);
-    return null;
-  }
-}
-
-// Helper function to find Dynamic Type collection
-function findDynamicTypeCollection() {
-  try {
-    const collections = figma.variables.getLocalVariableCollections();
-    const dynamicCollection = collections.find(collection => 
-      collection.name.toLowerCase() === 'dynamic type'
-    );
-    
-    if (dynamicCollection) {
-      return { collection: dynamicCollection };
-    }
-    return null;
-  } catch (error) {
-    console.error('Error finding dynamic type collection:', error);
-    return null;
-  }
-}
 
 // Helper function to set explicit variable mode for a node and its children
 function applyThemeModeValues(node, collection, modeIndex) {

@@ -92,31 +92,82 @@ button.primary:active {
 <body>
 <div class="container">
   <header>Figma Layout</header>
-  <div class="setting">
-    <label for="themeToggle">Theme</label>
-    <label class="switch">
-      <input type="checkbox" id="themeToggle" />
-      <span class="slider"></span>
-    </label>
+  <div id="collectionsContainer">
+    <p id="noSelection" style="color: #999; font-size: 12px;">Select a frame to detect collections</p>
   </div>
-  <div class="setting">
-    <label for="dynamicToggle">Dynamic Type</label>
-    <label class="switch">
-      <input type="checkbox" id="dynamicToggle" />
-      <span class="slider"></span>
-    </label>
-  </div>
-  <button id="createButton" class="primary">Create</button>
+  <button id="createButton" class="primary" disabled>Create</button>
 </div>
 <script>
-function sendCreate() {
-  const theme = document.getElementById('themeToggle').checked;
-  const dynamic = document.getElementById('dynamicToggle').checked;
-  parent.postMessage({ pluginMessage: { type: 'CREATE', theme, dynamic } }, '*');
+let detectedCollections = [];
+
+// Listen for messages from plugin
+window.onmessage = (event) => {
+  const msg = event.data.pluginMessage;
+  
+  if (msg.type === 'NO_SELECTION') {
+    showNoSelection();
+  } else if (msg.type === 'COLLECTIONS_DETECTED') {
+    showCollections(msg.collections);
+  }
+};
+
+function showNoSelection() {
+  const container = document.getElementById('collectionsContainer');
+  container.innerHTML = '<p id="noSelection" style="color: #999; font-size: 12px;">Select a frame to detect collections</p>';
+  document.getElementById('createButton').disabled = true;
+  detectedCollections = [];
 }
-document.getElementById('createButton').addEventListener('click', () => {
-  sendCreate();
-});
+
+function showCollections(collections) {
+  detectedCollections = collections;
+  const container = document.getElementById('collectionsContainer');
+  
+  if (collections.length === 0) {
+    container.innerHTML = '<p style="color: #999; font-size: 12px;">No variable collections detected in selection</p>';
+    document.getElementById('createButton').disabled = true;
+    return;
+  }
+  
+  container.innerHTML = '';
+  collections.forEach((collection, index) => {
+    const setting = document.createElement('div');
+    setting.className = 'setting';
+    setting.innerHTML = `
+      <label for="toggle${index}">${collection.name}</label>
+      <label class="switch">
+        <input type="checkbox" id="toggle${index}" data-collection-id="${collection.id}" />
+        <span class="slider"></span>
+      </label>
+    `;
+    container.appendChild(setting);
+  });
+  
+  document.getElementById('createButton').disabled = false;
+}
+
+function sendCreate() {
+  const enabledCollections = [];
+  
+  detectedCollections.forEach((collection, index) => {
+    const toggle = document.getElementById(`toggle${index}`);
+    if (toggle && toggle.checked) {
+      enabledCollections.push(collection);
+    }
+  });
+  
+  if (enabledCollections.length === 0) {
+    return; // Button click won't do anything if no toggles are on
+  }
+  
+  parent.postMessage({ 
+    pluginMessage: { 
+      type: 'CREATE', 
+      collections: enabledCollections 
+    } 
+  }, '*');
+}
+
+document.getElementById('createButton').addEventListener('click', sendCreate);
 </script>
 </body>
 </html>
