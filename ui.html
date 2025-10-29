@@ -10,7 +10,7 @@ body {
   font-size: 13px;
   color: #222;
   margin: 0;
-  padding: 12px;
+  padding: 12px 0;
   background: #fff;
   overflow: hidden; /* Prevent vertical overscrolling */
   box-sizing: border-box;
@@ -19,8 +19,7 @@ body {
   border: 1px solid #ddd;
   border-radius: 6px;
   padding: 12px;
-  width: 100%;
-  max-width: 200px; /* Ensure proper width fitting */
+  margin: 0 16px; /* Add 16px left/right margins */
   box-sizing: border-box;
 }
 header {
@@ -91,7 +90,7 @@ button.primary:active {
 </head>
 <body>
 <div class="container">
-  <header>Figma Layout</header>
+  <header>Collection</header>
   <div id="collectionsContainer">
     <p id="noSelection" style="color: #999; font-size: 12px;">Select a frame to detect collections</p>
   </div>

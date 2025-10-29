@@ -1,6 +1,6 @@
 {
-  "name": "Figma Plugin Test",
-  "id": "figma-plugin-test",
+  "name": "Screen Layout",
+  "id": "screen-layout",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
